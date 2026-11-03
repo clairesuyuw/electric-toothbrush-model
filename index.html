@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Electric Toothbrush · Interactive Model</title>
+  <style>
+    :root { color-scheme: light; --ink:#18352f; --muted:#627a72; --mint:#d9f0e7; --green:#25866c; --cream:#f7f8f2; }
+    * { box-sizing:border-box }
+    body { margin:0; min-height:100vh; padding:36px 18px; background:radial-gradient(circle at 12% 8%,#e7f4e9 0,transparent 32%),#f6f7f1; color:var(--ink); font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif }
+    main { width:min(950px,100%); margin:auto }
+    .eyebrow { color:var(--green); font-weight:750; letter-spacing:.12em; text-transform:uppercase; font-size:.78rem }
+    h1 { margin:.25rem 0 .35rem; font-size:clamp(2rem,5vw,3.2rem); letter-spacing:-.04em; line-height:1.08 }
+    .intro { color:var(--muted); margin:0 0 24px; max-width:650px }
+    .layout { display:grid; grid-template-columns:1.05fr .95fr; gap:18px }
+    .card { background:#fff; border:1px solid #e4ebe4; border-radius:22px; padding:24px; box-shadow:0 12px 35px #1b45300b }
+    .stage { min-height:390px; display:grid; place-items:center; position:relative; overflow:hidden; background:linear-gradient(145deg,#f1faf5,#fbfcf8) }
+    .device-wrap { display:grid; justify-items:center; gap:15px }
+    .device-scene { width:min(470px,100%); min-height:350px; display:flex; align-items:flex-end; justify-content:center; gap:38px; padding:72px 8px 28px; position:relative }
+    .brush { width:67px; height:242px; flex:none; border-radius:35px 35px 26px 26px; background:linear-gradient(90deg,#d6d9d9,#fff 48%,#e0e2e2); position:relative; z-index:2; touch-action:none; cursor:grab; box-shadow:inset -5px 0 8px #315c431b,0 18px 24px #315c4320; transform:translateX(0); transition:filter .25s }
+    .brush.dragging { cursor:grabbing; transition:none; animation:none !important; transform:scale(1.04); filter:drop-shadow(0 14px 12px #315c4340) }
+    .brush:before { content:""; position:absolute; width:52px; height:72px; border-radius:23px 23px 17px 17px; left:7px; top:-61px; background:radial-gradient(circle at 50% 40%,#41aaca 0 23%,#e9f8fa 25% 30%,#4cabc5 33% 43%,#fff 46%); border:2px solid #c9ddd5; box-shadow:inset 0 6px 0 #ecf5f2 }
+    .bristles { position:absolute; top:-48px; left:20px; width:26px; height:8px; border-radius:10px; background:repeating-linear-gradient(90deg,#34a9ca 0 3px,transparent 3px 5px); }
+    .button { position:absolute; width:34px;height:70px;border-radius:22px;top:95px;left:16px;background:linear-gradient(#d8dfe0,#eef0f0);border:2px solid #fff;box-shadow:0 2px 5px #18352f25 }
+    .button:before { content:"⏻"; position:absolute; top:6px;left:6px; width:18px;height:18px;border-radius:50%;background:#bbc8ca;color:white;text-align:center;font-size:13px;line-height:18px }
+    .button:after { content:""; position:absolute; left:11px;bottom:8px;width:8px;height:8px;border-radius:50%;background:#a7bdb3 }
+    .lamp { position:absolute; top:52px; left:29px; width:9px;height:9px;border-radius:50%;background:#a7bdb3; transition:.2s }
+    .charger { width:138px; height:57px; flex:none; border-radius:50% 50% 22px 22px; background:linear-gradient(#f0f2f1,#d9dedd); box-shadow:0 12px 18px #315c431b; position:relative; transition:box-shadow .2s, background .2s }
+    .charger.active { background:linear-gradient(#e3f5ed,#cde9dc); box-shadow:0 0 0 5px #53b68d26,0 12px 18px #315c431b }
+    .charger:before { content:""; position:absolute; width:25px;height:54px; left:56px;top:-31px;border-radius:7px 7px 3px 3px;background:linear-gradient(90deg,#e8ebea,#fff,#dadddc) }
+    .charger:after { content:""; position:absolute; left:0;right:0;bottom:0;height:5px;border-radius:50%;background:#aeb8b6 }
+    .charger-label { position:absolute; width:100%; left:0;top:18px;text-align:center;color:#71827b;font-size:.62rem;font-weight:800;letter-spacing:.12em }
+    .brush.on { animation:vibrate .12s linear infinite alternate }
+    .brush.on .lamp { background:#32a780; box-shadow:0 0 12px #32a780aa }
+    .brush.alert .lamp { background:#f04444; box-shadow:0 0 18px 8px #fa393966 }
+    .brush.low .lamp { animation:lowBlink .75s steps(2,end) infinite; background:#e9ad35 }
+    .brush.charging .lamp { background:#37b48b; animation:chargeBlink 1.7s ease-in-out infinite }
+    @keyframes vibrate { from{transform:translateX(-1px)} to{transform:translateX(1px)} }
+    @keyframes lowBlink { 50%{filter:brightness(.76)} }
+    @keyframes chargeBlink { 50%{opacity:.25;box-shadow:0 0 0 transparent} }
+    .device-caption { font-weight:700; color:#45645a; text-align:center; min-height:24px; margin-top:4px }
+    .drag-hint { margin-top:-8px; color:var(--muted); text-align:center; font-size:.84rem }
+    .status { min-height:48px; display:flex; gap:10px; align-items:center; padding:12px 14px; border-radius:13px; background:#eff7f2; color:#315e4f; font-weight:700 }
+    .status .dot { flex:none; width:10px;height:10px;border-radius:50%;background:#35a47b }
+    .status.alert { background:#fff0ef; color:#a52e2e }
+    .status.alert .dot { background:#ed4242; box-shadow:0 0 0 5px #ed42421c }
+    .status.low { background:#fff8e7; color:#815b13 }
+    .status.low .dot { background:#e9ad35; animation:lowBlink .75s infinite }
+    h2 { font-size:1.08rem; margin:0 0 14px }
+    .field { margin:0 0 19px }
+    label, .label { display:block; font-weight:700; margin-bottom:8px }
+    .hint { color:var(--muted); font-size:.88rem; margin-top:5px }
+    .modes { display:grid; grid-template-columns:repeat(3,1fr); gap:8px }
+    button { font:inherit; cursor:pointer }
+    .mode { border:1px solid #dce7df; border-radius:12px; background:#fff; color:#426157; padding:10px 6px; font-weight:700 }
+    .mode[aria-pressed="true"] { background:var(--mint); border-color:#7ebba2; color:#175a43 }
+    .power { width:100%; border:0; border-radius:13px; padding:13px 16px; background:#247c62; color:white; font-weight:800; box-shadow:0 5px 12px #247c6228 }
+    .power:hover { background:#1a684f }
+    input[type=range] { width:100%; accent-color:#25866c }
+    .range-head { display:flex; justify-content:space-between; gap:10px; align-items:baseline }
+    .range-head output { font-size:.9rem; font-weight:750; color:#426157 }
+    .battery-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:7px; font-weight:700 }
+    .battery { height:12px; border:1px solid #c9d9d0; background:#eef4f0; border-radius:8px; overflow:hidden }
+    .battery-fill { height:100%; width:72%; border-radius:8px; background:#3aa27c; transition:width .2s,background .2s }
+    .battery-fill.low { background:#e3a52e }
+    .battery-buttons { display:flex; gap:8px; margin-top:8px }
+    .small { border:1px solid #dce7df; background:#fff; color:#45645a; border-radius:9px; padding:6px 10px; font-size:.86rem }
+    .note { margin-top:18px; color:#71827b; font-size:.85rem }
+    @media(max-width:700px) { .layout{grid-template-columns:1fr}.stage{min-height:390px}.device-scene{gap:25px;min-height:350px}.card{padding:19px}body{padding-top:24px} }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">My Everyday Appliance · Interactive Model</div>
+    <h1>Electric Toothbrush</h1>
+    <p class="intro">Press the power button to brush, then choose a mode and pressure. A red light warns you when you brush too hard.</p>
+    <section class="layout" aria-label="Electric toothbrush simulator">
+      <div class="card stage">
+        <div class="device-wrap">
+          <div class="device-scene">
+            <div class="brush" id="brush" role="img" aria-label="Electric toothbrush illustration"><span class="bristles"></span><span class="button"></span><span class="lamp"></span></div>
+            <div class="charger" id="charger" aria-label="Charging stand"><span class="charger-label">CHARGER</span></div>
+          </div>
+          <div class="device-caption" id="deviceCaption">Toothbrush is off</div>
+          <div class="drag-hint">Drag the toothbrush onto the stand to charge.</div>
+          <div class="status" id="status" aria-live="polite"><span class="dot"></span><span id="statusText">Press the power button to start</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Controls</h2>
+        <div class="field">
+          <button class="power" id="powerButton" type="button">Turn On</button>
+        </div>
+        <div class="field">
+          <span class="label">Brushing mode</span>
+          <div class="modes" role="group" aria-label="Brushing mode">
+            <button class="mode" data-mode="Gentle" aria-pressed="true">Gentle</button>
+            <button class="mode" data-mode="Daily" aria-pressed="false">Daily</button>
+            <button class="mode" data-mode="Intense" aria-pressed="false">Intense</button>
+          </div>
+        </div>
+        <div class="field">
+          <div class="range-head"><label for="pressure">Brushing pressure</label><output id="pressureValue" for="pressure">30 / 100</output></div>
+          <input id="pressure" type="range" min="0" max="100" value="30">
+          <div class="hint">Move the slider to simulate pressure. Above 70, the red pressure warning turns on.</div>
+        </div>
+        <div class="field">
+          <div class="battery-row"><span>Battery</span><span id="batteryText">100%</span></div>
+          <div class="battery" role="progressbar" aria-label="Battery level" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><div class="battery-fill" id="batteryFill"></div></div>
+          <div class="battery-buttons"><button class="small" id="chargeButton" type="button">Place on charger</button><button class="small" id="removeChargerButton" type="button">Remove from charger</button></div>
+          <div class="hint">Battery drains in about 2 minutes while brushing. Place the brush on its stand to recharge.</div>
+        </div>
+        <p class="note">This is a simplified model of the toothbrush's states and behavior.</p>
+      </div>
+    </section>
+  </main>
+  <script>
+    // These variables store the toothbrush model's current state.
+    let isOn = false;
+    let mode = "Gentle";
+    let battery = 100;
+    let pressure = 30;
+    let isCharging = false;
+    let lastTick = Date.now();
+
+    const brush = document.querySelector("#brush");
+    const status = document.querySelector("#status");
+    const statusText = document.querySelector("#statusText");
+    const caption = document.querySelector("#deviceCaption");
+    const powerButton = document.querySelector("#powerButton");
+    const pressureInput = document.querySelector("#pressure");
+    const pressureValue = document.querySelector("#pressureValue");
+    const batteryFill = document.querySelector("#batteryFill");
+    const batteryText = document.querySelector("#batteryText");
+    const charger = document.querySelector("#charger");
+    const deviceScene = document.querySelector(".device-scene");
+    let dragState = null;
+
+    function updateDisplay() {
+      const isLow = battery <= 20;
+      const tooMuchPressure = pressure > 70;
+      brush.classList.toggle("charging", isCharging);
+      charger.classList.toggle("active", isCharging);
+      brush.classList.toggle("on", isOn);
+      brush.classList.toggle("alert", isOn && tooMuchPressure && !isLow);
+      brush.classList.toggle("low", isLow);
+      powerButton.textContent = isOn ? "Turn Off" : "Turn On";
+      pressureValue.textContent = `${pressure} / 100`;
+      batteryText.textContent = `${battery.toFixed(1)}%`;
+      batteryFill.style.width = `${battery}%`;
+      batteryFill.classList.toggle("low", isLow);
+      document.querySelector(".battery").setAttribute("aria-valuenow", battery.toFixed(1));
+
+      // if / else if selects the highest-priority status message.
+      status.classList.remove("alert", "low");
+      if (isLow) {
+        status.classList.add("low");
+        statusText.textContent = isCharging ? `Charging · ${battery.toFixed(1)}%` : "Low battery · place on charger";
+        caption.textContent = isCharging ? "Slow pulsing light · charging" : isOn ? `Brushing · ${mode} mode` : "Toothbrush is off · low battery";
+      } else if (!isOn) {
+        statusText.textContent = isCharging ? `Charging · ${battery.toFixed(1)}%` : "Press the power button to start";
+        caption.textContent = isCharging ? "Slow pulsing light · charging" : "Toothbrush is off";
+      } else if (tooMuchPressure) {
+        status.classList.add("alert");
+        statusText.textContent = "Too much pressure! Brush more gently.";
+        caption.textContent = `Brushing · ${mode} mode · pressure warning`;
+      } else {
+        statusText.textContent = `Brushing normally · ${mode} mode`;
+        caption.textContent = `Brushing · ${mode} mode`;
+      }
+    }
+
+    // Gentle, Daily, and Intense modes use progressively faster vibration.
+    function vibrationDelay() {
+      return mode === "Gentle" ? 0.22 : mode === "Daily" ? 0.11 : 0.055;
+    }
+    function updateVibration() {
+      brush.style.animationDuration = `${vibrationDelay()}s`;
+    }
+
+    powerButton.addEventListener("click", () => {
+      // The brush cannot start when the battery is empty or charging.
+      if (!isOn && (battery <= 0 || isCharging)) {
+        status.classList.add("low");
+        statusText.textContent = isCharging ? "Remove the brush from the charger before brushing" : "Battery empty · place on charger";
+        return;
+      }
+      isOn = !isOn;
+      if (!isOn) lastTick = Date.now();
+      updateDisplay();
+    });
+
+    document.querySelectorAll(".mode").forEach((button) => {
+      button.addEventListener("click", () => {
+        mode = button.dataset.mode;
+        document.querySelectorAll(".mode").forEach((item) => item.setAttribute("aria-pressed", item === button));
+        updateVibration();
+        updateDisplay();
+      });
+    });
+
+    pressureInput.addEventListener("input", (event) => {
+      pressure = Number(event.target.value);
+      updateDisplay();
+    });
+
+    document.querySelector("#chargeButton").addEventListener("click", () => {
+      isCharging = true;
+      isOn = false;
+      lastTick = Date.now();
+      updateDisplay();
+    });
+
+    document.querySelector("#removeChargerButton").addEventListener("click", () => {
+      isCharging = false;
+      lastTick = Date.now();
+      updateDisplay();
+    });
+
+    // Drag the brush onto the stand to charge; drag it away to stop charging.
+    brush.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0 && event.pointerType === "mouse") return;
+      const rect = brush.getBoundingClientRect();
+      dragState = {
+        pointerId: event.pointerId,
+        offsetX: event.clientX - rect.left,
+        offsetY: event.clientY - rect.top
+      };
+      brush.classList.add("dragging");
+      brush.setPointerCapture(event.pointerId);
+      event.preventDefault();
+    });
+
+    brush.addEventListener("pointermove", (event) => {
+      if (!dragState || event.pointerId !== dragState.pointerId) return;
+      const sceneRect = deviceScene.getBoundingClientRect();
+      brush.style.position = "absolute";
+      brush.style.left = `${event.clientX - sceneRect.left - dragState.offsetX}px`;
+      brush.style.top = `${event.clientY - sceneRect.top - dragState.offsetY}px`;
+      brush.style.margin = "0";
+      const brushRect = brush.getBoundingClientRect();
+      const standRect = charger.getBoundingClientRect();
+      const onStand = brushRect.right > standRect.left && brushRect.left < standRect.right && brushRect.bottom > standRect.top && brushRect.top < standRect.bottom;
+      if (onStand && !isCharging) {
+        isCharging = true;
+        isOn = false;
+        lastTick = Date.now();
+        updateDisplay();
+      } else if (!onStand && isCharging) {
+        isCharging = false;
+        lastTick = Date.now();
+        updateDisplay();
+      }
+    });
+
+    function finishDrag(event) {
+      if (!dragState || event.pointerId !== dragState.pointerId) return;
+      const brushRect = brush.getBoundingClientRect();
+      const standRect = charger.getBoundingClientRect();
+      const onStand = brushRect.right > standRect.left && brushRect.left < standRect.right && brushRect.bottom > standRect.top && brushRect.top < standRect.bottom;
+      if (onStand) {
+        const sceneRect = deviceScene.getBoundingClientRect();
+        brush.style.left = `${standRect.left - sceneRect.left + (standRect.width - brushRect.width) / 2}px`;
+        brush.style.top = `${standRect.top - sceneRect.top - brushRect.height + 24}px`;
+        isCharging = true;
+        isOn = false;
+      } else {
+        brush.style.position = "";
+        brush.style.left = "";
+        brush.style.top = "";
+        brush.style.margin = "";
+        isCharging = false;
+      }
+      lastTick = Date.now();
+      brush.classList.remove("dragging");
+      dragState = null;
+      updateDisplay();
+    }
+
+    brush.addEventListener("pointerup", finishDrag);
+    brush.addEventListener("pointercancel", finishDrag);
+
+    // Full battery lasts approximately two minutes of brushing; charging takes about one minute.
+    window.setInterval(() => {
+      const now = Date.now();
+      const elapsedSeconds = (now - lastTick) / 1000;
+      lastTick = now;
+      if (isCharging) battery = Math.min(100, battery + elapsedSeconds * (100 / 60));
+      else if (isOn) battery = Math.max(0, battery - elapsedSeconds * (100 / 120));
+      if (battery <= 0) isOn = false;
+      updateDisplay();
+    }, 250);
+
+    updateVibration();
+    updateDisplay();
+  </script>
+</body>
+</html>
